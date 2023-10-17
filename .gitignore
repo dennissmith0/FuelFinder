@@ -1,1 +1,6 @@
 .env
+config.js
+index.js
+#package-lock.js
+#package.json
+server.js
