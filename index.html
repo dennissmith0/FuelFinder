@@ -297,26 +297,26 @@ document.getElementById("get-fuel").addEventListener("click", function() {
     assignFuelAmounts();
     ordersGenerated = true; // Set the flag to true after generating fuel amounts
 
-    let refineriesOutput = "<h3>Refineries</h3><table><tr><th>Refinery</th><th>Total Fuel Capacity</th><th>Regular</th><th>Midgrade</th><th>Premium</th><th>Regular Price</th><th>Midgrade Price</th><th>Premium Price</th></tr>";
+    let refineriesOutput = "<h3>Refineries</h3><table><tr><th>Refinery</th><th>Total Fuel Capacity</th><th>Regular</th><th>Regular Price</th><th>Midgrade</th><th>Midgrade Price</th><th>Premium</th><th>Premium Price</th></tr>";
     refineries.forEach(refinery => {
         refineriesOutput += `<tr>
             <td>${refinery.title}</td>
             <td>${refinery.totalFuelAmount} gallons</td>
-            <td>${refinery.fuelAmounts.regular} gallons</td>
+            <td>${refinery.fuelAmounts.regular} gal</td>
             <td>${refinery.prices.regular} $/gal</td>
-            <td>${refinery.fuelAmounts.midgrade} gallons</td>
+            <td>${refinery.fuelAmounts.midgrade} gal</td>
             <td>${refinery.prices.midgrade} $/gal</td>
-            <td>${refinery.fuelAmounts.premium} gallons</td>
+            <td>${refinery.fuelAmounts.premium} gal</td>
             <td>${refinery.prices.premium} $/gal</td>
         </tr>`;
     });
     refineriesOutput += "</table>";
 
-    let gasStationsOutput = "<h3>Gas Stations</h3><table><tr><th>Gas Station</th><th>Fuel Capacity</th><th>Regular Price</th><th>Midgrade Price</th><th>Premium Price</th></tr>";
+    let gasStationsOutput = "<h3>Gas Stations</h3><table><tr><th>Refinery</th><th>Total Fuel Capacity</th><th>Regular</th><th>Regular Price</th><th>Midgrade</th><th>Midgrade Price</th><th>Premium</th><th>Premium Price</th></tr>";
     gasStations.forEach(gasStation => {
         gasStationsOutput += `<tr>
             <td>${gasStation.title}</td>
-            <td>${gasStation.fuelAmount} gallons</td>
+            <td>${gasStation.totalFuelAmount} gallons</td>
             <td>${gasStation.fuelAmounts.regular} gallons</td>
             <td>${gasStation.prices.regular} $/gal</td>
             <td>${gasStation.fuelAmounts.midgrade} gallons</td>
