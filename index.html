@@ -178,6 +178,36 @@ let ordersGenerated = false; // Flag to track if orders have been generated
 // production. However, for Silver Eagle Refining, we lacked specific data, so we took an average
 // of the daily gasoline capacities of the other three refineries to estimate its fuel amount.
 
+
+// Function to generate random price between min and max
+function getRandomPrice(min, max) {
+    return parseFloat((Math.random() * (max - min) + min).toFixed(2));
+}
+
+// Assign random prices to refineries and gas stations (based on averages from 2019-2022)
+// https://www.eia.gov/dnav/pet/pet_pri_refmg_dcu_nus_m.htm
+function assignRandomPrices() {
+    const regularMin = 1.380, regularMax = 3.854;
+    const midgradeMin = 1.829, midgradeMax = 4.304;
+    const premiumMin = 2.089, premiumMax = 4.565;
+
+    refineries.forEach(refinery => {
+        refinery.prices = {
+            regular: getRandomPrice(regularMin, regularMax),
+            midgrade: getRandomPrice(midgradeMin, midgradeMax),
+            premium: getRandomPrice(premiumMin, premiumMax),
+        };
+    });
+
+    gasStations.forEach(station => {
+        station.prices = {
+            regular: getRandomPrice(regularMin, regularMax),
+            midgrade: getRandomPrice(midgradeMin, midgradeMax),
+            premium: getRandomPrice(premiumMin, premiumMax),
+        };
+    });
+}
+
 // Get Fuel amounts
 function assignFuelAmounts() {
     const maxFuelAmounts = {
@@ -195,17 +225,27 @@ function assignFuelAmounts() {
     gasStations.forEach(station => {
         station.fuelAmount = Math.floor(Math.random() * 24001);  // Random value between 0 and 30000 gallons
     });
+
+    // Assign random prices for each type of gasoline
+    assignRandomPrices();
 }
 
+// Fuel amounts + prices
 document.getElementById("get-fuel").addEventListener("click", function() {
     assignFuelAmounts();
     ordersGenerated = true; // Set the flag to true after generating fuel amounts
 
-    let refineriesOutput = "<h3>Refineries</h3><ul>";
+    let refineriesOutput = "<h3>Refineries</h3><table><tr><th>Refinery</th><th>Fuel Capacity</th><th>Regular Price</th><th>Midgrade Price</th><th>Premium Price</th></tr>";
     refineries.forEach(refinery => {
-        refineriesOutput += `<li>${refinery.title}: ${refinery.fuelAmount} gallons</li>`;
+        refineriesOutput += `<tr>
+            <td>${refinery.title}</td>
+            <td>${refinery.fuelAmount} gallons</td>
+            <td>${refinery.prices.regular} $/gal (Sales to end users)</td>
+            <td>${refinery.prices.midgrade} $/gal (Sales to end users)</td>
+            <td>${refinery.prices.premium} $/gal (Sales to end users)</td>
+        </tr>`;
     });
-    refineriesOutput += "</ul>";
+    refineriesOutput += "</table>";
 
     let gasStationsOutput = "<h3>Gas Stations</h3><ul>";
     gasStations.forEach(gasStation => {
