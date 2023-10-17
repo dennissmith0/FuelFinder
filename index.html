@@ -208,6 +208,41 @@ function assignRandomPrices() {
     });
 }
 
+function getGasPricePosition(gasType, currentPrice) {
+  let minPrice, maxPrice;
+  
+  switch (gasType) {
+    case 'Premium':
+      minPrice = 2.795;
+      maxPrice = 4.270;
+      break;
+    case 'Midgrade':
+      minPrice = 2.553;
+      maxPrice = 3.954;
+      break;
+    case 'Regular':
+      minPrice = 2.237;
+      maxPrice = 3.489;
+      break;
+    default:
+      return 'Invalid gas type';
+  }
+  
+  if (currentPrice < minPrice || currentPrice > maxPrice) {
+    return 'Price out of range';
+  }
+  
+  let position = ((currentPrice - minPrice) / (maxPrice - minPrice)) * 100;
+  
+  return position.toFixed(2) + '%';
+}
+
+// Example usages:
+console.log(getGasPricePosition('Premium', 3.0));  // Should output something like "12.16%"
+console.log(getGasPricePosition('Midgrade', 3.0)); // Should output something like "26.75%"
+console.log(getGasPricePosition('Regular', 3.0));  // Should output something like "58.13%"
+
+
 // Get Fuel amounts
 function assignFuelAmounts() {
     const maxFuelAmounts = {
@@ -240,18 +275,24 @@ document.getElementById("get-fuel").addEventListener("click", function() {
         refineriesOutput += `<tr>
             <td>${refinery.title}</td>
             <td>${refinery.fuelAmount} gallons</td>
-            <td>${refinery.prices.regular} $/gal (Sales to end users)</td>
-            <td>${refinery.prices.midgrade} $/gal (Sales to end users)</td>
-            <td>${refinery.prices.premium} $/gal (Sales to end users)</td>
+            <td>${refinery.prices.regular} $/gal</td>
+            <td>${refinery.prices.midgrade} $/gal</td>
+            <td>${refinery.prices.premium} $/gal</td>
         </tr>`;
     });
     refineriesOutput += "</table>";
 
-    let gasStationsOutput = "<h3>Gas Stations</h3><ul>";
+    let gasStationsOutput = "<h3>Gas Stations</h3><table><tr><th>Gas Station</th><th>Fuel Capacity</th><th>Regular Price</th><th>Midgrade Price</th><th>Premium Price</th></tr>";
     gasStations.forEach(gasStation => {
-        gasStationsOutput += `<li>${gasStation.title}: ${gasStation.fuelAmount} gallons</li>`;
+        gasStationsOutput += `<tr>
+            <td>${gasStation.title}</td>
+            <td>${gasStation.fuelAmount} gallons</td>
+            <td>${gasStation.prices.regular} $/gal</td>
+            <td>${gasStation.prices.midgrade} $/gal</td>
+            <td>${gasStation.prices.premium} $/gal</td>
+        </tr>`;
     });
-    gasStationsOutput += "</ul>";
+    gasStationsOutput += "</table>";
 
     document.getElementById("refineries-list").innerHTML = refineriesOutput;
     document.getElementById("gas-stations-list").innerHTML = gasStationsOutput;
