@@ -208,6 +208,7 @@ function assignRandomPrices() {
     });
 }
 
+// https://www.eia.gov/dnav/pet/pet_pri_gnd_dcus_nus_w.htm (much more data. based on first week of january 2017-2023)
 function getGasPricePosition(gasType, currentPrice) {
   let minPrice, maxPrice;
   
@@ -237,11 +238,6 @@ function getGasPricePosition(gasType, currentPrice) {
   return position.toFixed(2) + '%';
 }
 
-// Example usages:
-console.log(getGasPricePosition('Premium', 3.0));  // Should output something like "12.16%"
-console.log(getGasPricePosition('Midgrade', 3.0)); // Should output something like "26.75%"
-console.log(getGasPricePosition('Regular', 3.0));  // Should output something like "58.13%"
-
 
 // Get Fuel amounts
 function assignFuelAmounts() {
@@ -254,11 +250,25 @@ function assignFuelAmounts() {
 
     refineries.forEach((refinery) => {
         const maxFuel = maxFuelAmounts[refinery.title];
-        refinery.fuelAmount = Math.floor(Math.random() * (maxFuel + 1));
+        refinery.totalFuelAmount = Math.floor(Math.random() * (maxFuel + 1));
+
+        let [regular, midgrade, premium] = distributeFuel(refinery.totalFuelAmount);
+        refinery.fuelAmounts = { regular, midgrade, premium };
     });
 
     gasStations.forEach(station => {
-        station.fuelAmount = Math.floor(Math.random() * 24001);  // Random value between 0 and 30000 gallons
+        let totalFuelAmount = Math.floor(Math.random() * 24001);  // Random value between 0 and 24000 gallons
+
+        let regularPercentage = Math.random();
+        let midgradePercentage = Math.random() * (1 - regularPercentage);
+        let premiumPercentage = 1 - regularPercentage - midgradePercentage;
+
+        station.totalFuelAmount = totalFuelAmount;
+        station.fuelAmounts = {
+            regular: Math.floor(totalFuelAmount * regularPercentage),
+            midgrade: Math.floor(totalFuelAmount * midgradePercentage),
+            premium: Math.floor(totalFuelAmount * premiumPercentage)
+        };
     });
 
     // Assign random prices for each type of gasoline
@@ -266,18 +276,37 @@ function assignFuelAmounts() {
     getGasPricePosition();
 }
 
+// Helper function that takes the total fuel amount as an argument and returns three random numbers that add up to that total.
+// These three numbers represent the amounts of regular, midgrade, and premium fuel.
+function distributeFuel(totalFuel) {
+    let remainingFuel = totalFuel;
+    
+    let regular = Math.floor(Math.random() * remainingFuel);
+    remainingFuel -= regular;
+
+    let midgrade = Math.floor(Math.random() * remainingFuel);
+    remainingFuel -= midgrade;
+
+    let premium = remainingFuel;  // What's left goes to premium
+
+    return [regular, midgrade, premium];
+}
+
 // Fuel amounts + prices
 document.getElementById("get-fuel").addEventListener("click", function() {
     assignFuelAmounts();
     ordersGenerated = true; // Set the flag to true after generating fuel amounts
 
-    let refineriesOutput = "<h3>Refineries</h3><table><tr><th>Refinery</th><th>Fuel Capacity</th><th>Regular Price</th><th>Midgrade Price</th><th>Premium Price</th></tr>";
+    let refineriesOutput = "<h3>Refineries</h3><table><tr><th>Refinery</th><th>Total Fuel Capacity</th><th>Regular</th><th>Midgrade</th><th>Premium</th><th>Regular Price</th><th>Midgrade Price</th><th>Premium Price</th></tr>";
     refineries.forEach(refinery => {
         refineriesOutput += `<tr>
             <td>${refinery.title}</td>
-            <td>${refinery.fuelAmount} gallons</td>
+            <td>${refinery.totalFuelAmount} gallons</td>
+            <td>${refinery.fuelAmounts.regular} gallons</td>
             <td>${refinery.prices.regular} $/gal</td>
+            <td>${refinery.fuelAmounts.midgrade} gallons</td>
             <td>${refinery.prices.midgrade} $/gal</td>
+            <td>${refinery.fuelAmounts.premium} gallons</td>
             <td>${refinery.prices.premium} $/gal</td>
         </tr>`;
     });
@@ -288,8 +317,11 @@ document.getElementById("get-fuel").addEventListener("click", function() {
         gasStationsOutput += `<tr>
             <td>${gasStation.title}</td>
             <td>${gasStation.fuelAmount} gallons</td>
+            <td>${gasStation.fuelAmounts.regular} gallons</td>
             <td>${gasStation.prices.regular} $/gal</td>
+            <td>${gasStation.fuelAmounts.midgrade} gallons</td>
             <td>${gasStation.prices.midgrade} $/gal</td>
+            <td>${gasStation.fuelAmounts.premium} gallons</td>
             <td>${gasStation.prices.premium} $/gal</td>
         </tr>`;
     });
