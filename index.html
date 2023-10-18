@@ -371,6 +371,7 @@ document.getElementById("generate-orders").addEventListener("click", async funct
             if (refinery.fuelAmounts.regular < needed.regular ||
                 refinery.fuelAmounts.midgrade < needed.midgrade ||
                 refinery.fuelAmounts.premium < needed.premium) {
+                    console.log(`Skipping ${refinery.title} for ${gasStation.title} due to insufficient fuel.`);
                     continue;  // Skip if the refinery can't meet the demand
             }
 
@@ -408,13 +409,13 @@ document.getElementById("generate-orders").addEventListener("click", async funct
                         <th>Duration</th>
                         <th>Total Cost</th>
                     </tr>
-                    <tr>
+                    <tr data-refinery-index="${closest.refinery.title}" data-gas-station-index="${gasStation.title}" class="order-row">
                         <td>${closest.refinery.title}</td>
                         <td>${closest.distance} miles</td>
                         <td>${closest.duration}</td>
                         <td>$${closest.totalCost.toFixed(2)}</td>
                     </tr>
-                    <tr>
+                    <tr data-refinery-index="${secondClosest.refinery.title}" data-gas-station-index="${gasStation.title}" class="order-row">
                         <td>${secondClosest.refinery.title}</td>
                         <td>${secondClosest.distance} miles</td>
                         <td>${secondClosest.duration}</td>
@@ -426,6 +427,42 @@ document.getElementById("generate-orders").addEventListener("click", async funct
         }
     }
 });
+
+
+document.querySelectorAll('.order-row').forEach(row => {
+    row.addEventListener('click', function(event) {
+        const refineryTitle = this.getAttribute('data-refinery-index');
+        const gasStationTitle = this.getAttribute('data-gas-station-index');
+        
+        const selectedRefinery = refineries.find(r => r.title === refineryTitle);
+        const selectedGasStation = gasStations.find(g => g.title === gasStationTitle);
+        
+        // Update the map here using selectedRefinery and selectedGasStation
+        // You can call your existing function that updates the map route
+        updateMapWithRoute(selectedRefinery, selectedGasStation);
+    });
+});
+
+// Clear any existing route on the map and then draw a new route based on the selected refinery and gas station.
+function updateMapWithRoute(selectedRefinery, selectedGasStation) {
+    // Create a Directions Request object
+    const request = {
+        origin: new google.maps.LatLng(selectedRefinery.lat, selectedRefinery.lng),
+        destination: new google.maps.LatLng(selectedGasStation.lat, selectedGasStation.lng),
+        travelMode: google.maps.TravelMode.DRIVING,
+    };
+
+    // Use the Directions Service to find a route between the two points
+    directionsService.route(request, function(result, status) {
+        if (status === google.maps.DirectionsStatus.OK) {
+            // If the route is successfully found, display it on the map
+            directionsRenderer.setDirections(result);
+        } else {
+            // If something went wrong, you can display a message or take other actions
+            window.alert('Directions request failed due to ' + status);
+        }
+    });
+}
 
 
 
