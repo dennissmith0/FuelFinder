@@ -322,11 +322,11 @@ document.getElementById("get-fuel").addEventListener("click", function() {
             <td>${refinery.title}</td>
             <td>${refinery.totalFuelAmount} gallons</td>
             <td>${refinery.fuelAmounts.regular} gallons</td>
-            <td>${refinery.prices.regular} $/gal</td>
+            <td>$ ${refinery.prices.regular}/gal</td>
             <td>${refinery.fuelAmounts.midgrade} gallons</td>
-            <td>${refinery.prices.midgrade} $/gal</td>
+            <td>$ ${refinery.prices.midgrade}/gal</td>
             <td>${refinery.fuelAmounts.premium} gallons</td>
-            <td>${refinery.prices.premium} $/gal</td>
+            <td>$ ${refinery.prices.premium}/gal</td>
         </tr>`;
     });
     refineriesOutput += "</table>";
@@ -339,9 +339,9 @@ document.getElementById("get-fuel").addEventListener("click", function() {
             <td>${gasStation.fuelAmounts.regular} gallons</td>
             <td>$ ${gasStation.prices.regular}/gal</td>
             <td>${gasStation.fuelAmounts.midgrade} gallons</td>
-            <td>$ ${gasStation.prices.midgrade} $/gal</td>
+            <td>$ ${gasStation.prices.midgrade}/gal</td>
             <td>${gasStation.fuelAmounts.premium} gallons</td>
-            <td>$ ${gasStation.prices.premium} $/gal</td>
+            <td>$ ${gasStation.prices.premium}/gal</td>
         </tr>`;
     });
     gasStationsOutput += "</table>";
