@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Salt Lake</title>
+    <style>
+        /* Set the size of your map */
+        #gmp-map {
+            height: 500px;
+            width: 700px;
+        }
+        table {
+        width: 100%;
+        border-collapse: collapse;
+        }
+        th, td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+        }
+        th {
+        background-color: #f2f2f2;
+        }
+        .order-row {
+        cursor: pointer;
+        }
+
+        .order-row:hover {
+        background-color: #f0f0f0;
+        }
+    </style>
+</head>
+<body>
+
+<div style="display: flex;">
+    <div style="width: 40%;">
+        <div id="gmp-map"></div>
+        <button id="get-distance">Get Distance & Duration</button>
+        <select id="refinery-select">
+            <option value="-1">Select a Refinery:</option>
+            <option value="0">Silver Eagle Refining</option>
+            <option value="1">Chevron Refinery</option>
+            <option value="2">Big West Oil LLC</option>
+            <option value="3">Holly Refining Co.</option>
+        </select>
+        <select id="gas-station-select">
+            <option value="-1">Select a Site:</option>
+            <option value="0">Sinclair (Sugarhouse)</option>
+            <option value="1">Maverik (Draper)</option>
+            <option value="2">Sinclair (Foothill)</option>
+            <option value="3">Maverik (Downtown)</option>
+            <option value="4">Maverik (South Jordan)</option>
+        </select>
+        <div id="output"></div>
+    </div>
+    <div style="width: 60%; margin-left: 20px;">
+        <button id="get-fuel">Get Fuel Amounts</button>
+        <div id="fuel-output"></div>
+        <div id="refineries-list"></div>
+        <div id="gas-stations-list"></div>
+        <button id="generate-orders">Generate Orders</button>
+        <div id="potential-orders"></div>
+    </div>
+</div>
+
+<script>
+"use strict";
+
+let refineries;
+let gasStations;
+
+// define location of refineries & sites 
+let directionsService, directionsRenderer;
+
+function initMap() {
+  const map = new google.maps.Map(document.getElementById("gmp-map"), {
+    zoom: 10,
+    center: { lat: 40.7608, lng: -111.8910 },
+  });
+
+  directionsService = new google.maps.DirectionsService();
+  directionsRenderer = new google.maps.DirectionsRenderer();
+  directionsRenderer.setMap(map);
+  
+  refineries = [
+    { lat: 40.86740493774414, lng: -111.91154479980469, title:"Silver Eagle Refining" },
+    { lat: 40.82986068725586, lng: -111.93464660644531, title:"Chevron Refinery"},
+    { lat: 40.841678619384766, lng: -111.92097473144531, title:"Big West Oil LLC"},
+    { lat: 40.88388442993164, lng: -111.90167236328125, title:"Holly Refining Co."}
+    // ... add the other refinery coordinates and titles here
+  ];
+
+  gasStations = [
+    { lat: 40.73373794555664, lng: -111.85363006591797, title:"Sinclair (Sugarhouse)"},
+    { lat: 40.54389572143555, lng: -111.87120819091797, title:"Maverik (Draper)"},
+    { lat: 40.741390228271484, lng: -111.82665252685547, title:"Sinclair (Foothill)"},
+    { lat: 40.76228332519531, lng: -111.87633514404297, title:"Maverik (Downtown)"},
+    { lat: 40.53744888305664, lng: -111.9775619506836, title:"Maverik (South Jordan)"}
+  ];
+
+    let currentMarker;
+    document.getElementById("refinery-select").addEventListener("change", function() {
+    const selectedRefinery = refineries[this.value];
+    if (currentMarker) {
+        currentMarker.setMap(null);
+    }
+    if (this.value == "") return;
+    currentMarker = new google.maps.Marker({
+        position: selectedRefinery,
+        map,
+        title: selectedRefinery.title,
+        });
+    });
+
+    let gasStationMarker;
+    document.getElementById("gas-station-select").addEventListener("change", function() {
+    const selectedGasStation = gasStations[this.value];
+    if (gasStationMarker) {
+        gasStationMarker.setMap(null);
+    }
+    if (this.value == "") return;
+    gasStationMarker = new google.maps.Marker({
+        position: selectedGasStation,
+        map,
+        title: selectedGasStation.title,
+        });
+    });
+}
+
+// Fetch distance and duration between a refinery and a site from the Distance Matrix API
+document.getElementById("get-distance").addEventListener("click", async function() {
+    const selectedRefineryIndex = document.getElementById("refinery-select").value;
+    const selectedGasStationIndex = document.getElementById("gas-station-select").value;
+    
+    if (selectedRefineryIndex == "-1" || selectedGasStationIndex == "-1") {
+        alert("Please select both a refinery and a gas station.");
+        return;
+    }
+
+    const selectedRefinery = refineries[selectedRefineryIndex];
+    const selectedGasStation = gasStations[selectedGasStationIndex];
+
+    try {
+        const distanceAndDuration = await displayDistanceAndDuration(selectedRefinery, selectedGasStation);
+        const outputDiv = document.getElementById('output');
+        outputDiv.innerHTML = `Distance: ${distanceAndDuration.distance}, Duration: ${distanceAndDuration.duration}`;
+    } catch (error) {
+        console.error("Failed to get distance and duration:", error);
+    }
+
+    const request = {
+        origin: new google.maps.LatLng(selectedRefinery.lat, selectedRefinery.lng),
+        destination: new google.maps.LatLng(selectedGasStation.lat, selectedGasStation.lng),
+        travelMode: google.maps.TravelMode.DRIVING,
+    };
+
+    directionsService.route(request, function(result, status) {
+        if (status == google.maps.DirectionsStatus.OK) {
+            directionsRenderer.setDirections(result);
+        } else {
+            window.alert('Directions request failed due to ' + status);
+        }
+    });
+});
+
+
+async function displayDistanceAndDuration(origin, destination) {
+    return new Promise((resolve, reject) => {
+        const service = new google.maps.DistanceMatrixService();
+        service.getDistanceMatrix(
+            {
+                origins: [new google.maps.LatLng(origin.lat, origin.lng)],
+                destinations: [new google.maps.LatLng(destination.lat, destination.lng)],
+                travelMode: google.maps.TravelMode.DRIVING,
+                unitSystem: google.maps.UnitSystem.IMPERIAL,
+            }, 
+            (response, status) => {
+                if (status === google.maps.DistanceMatrixStatus.OK) {
+                    const results = response.rows[0].elements[0];
+                    resolve({ distance: results.distance.text, duration: results.duration.text });
+                } else {
+                    reject(new Error(`Failed to fetch distance and duration: ${status}`));
+                }
+            }
+        );
+    });
+    console.log('Distance and Duration:', { distance: results.distance.text, duration: results.duration.text });
+    // resolve({ distance: results.distance.text, duration: results.duration.text });
+   
+}
+
+
+let ordersGenerated = false; // Flag to track if orders have been generated
+
+// We estimated the daily fuel capacities of refineries using available data.
+// Typically, a barrel of crude oil (42 gallons) yields about 19 gallons of gasoline.
+// For three refineries, we found their crude oil processing capacity and estimated the gasoline
+// production. However, for Silver Eagle Refining, we lacked specific data, so we took an average
+// of the daily gasoline capacities of the other three refineries to estimate its fuel amount.
+
+
+// Function to generate random price between min and max
+function getRandomPrice(min, max) {
+    return parseFloat((Math.random() * (max - min) + min).toFixed(2));
+}
+
+// Assign random prices to refineries and gas stations (based on averages from 2019-2022)
+// https://www.eia.gov/dnav/pet/pet_pri_refmg_dcu_nus_m.htm
+function assignRandomPrices() {
+    const regularMin = 1.380, regularMax = 3.854;
+    const midgradeMin = 1.829, midgradeMax = 4.304;
+    const premiumMin = 2.089, premiumMax = 4.565;
+
+    refineries.forEach(refinery => {
+        refinery.prices = {
+            regular: getRandomPrice(regularMin, regularMax),
+            midgrade: getRandomPrice(midgradeMin, midgradeMax),
+            premium: getRandomPrice(premiumMin, premiumMax),
+        };
+    });
+
+    gasStations.forEach(station => {
+        station.prices = {
+            regular: getRandomPrice(regularMin, regularMax),
+            midgrade: getRandomPrice(midgradeMin, midgradeMax),
+            premium: getRandomPrice(premiumMin, premiumMax),
+        };
+    });
+}
+
+// https://www.eia.gov/dnav/pet/pet_pri_gnd_dcus_nus_w.htm (much more data. based on first week of january 2017-2023)
+function getGasPricePosition(gasType, currentPrice) {
+  let minPrice, maxPrice;
+  
+  switch (gasType) {
+    case 'Premium':
+      minPrice = 2.795;
+      maxPrice = 4.270;
+      break;
+    case 'Midgrade':
+      minPrice = 2.553;
+      maxPrice = 3.954;
+      break;
+    case 'Regular':
+      minPrice = 2.237;
+      maxPrice = 3.489;
+      break;
+    default:
+      return 'Invalid gas type';
+  }
+  
+  if (currentPrice < minPrice || currentPrice > maxPrice) {
+    return 'Price out of range';
+  }
+  
+  let position = ((currentPrice - minPrice) / (maxPrice - minPrice)) * 100;
+  
+  return position.toFixed(2) + '%';
+}
+
+const maxFuelAmounts = {
+        "Holly Refining Co.": 850500 / 8,
+        "Big West Oil LLC": 661500 / 3,
+        "Chevron Refinery": 1067000 / 3,
+        "Silver Eagle Refining": (1067000 / 3 + 661500 / 3 + 850500 / 3) / 3 // no info on barrels/day. Average the other 3
+    };
+
+const maxGasStationCapacities = {
+        regular: 40000,
+        midgrade: 30000,
+        premium: 30000
+    };
+
+// Get Fuel amounts
+function assignFuelAmounts() {
+
+    refineries.forEach((refinery) => {
+        const maxFuel = maxFuelAmounts[refinery.title];
+        refinery.totalFuelAmount = Math.floor(Math.random() * (maxFuel + 1));
+
+        let [regular, midgrade, premium] = distributeFuel(refinery.totalFuelAmount);
+        refinery.fuelAmounts = { regular, midgrade, premium };
+    });
+
+    gasStations.forEach(station => {
+        let regular = Math.floor(Math.random() * (maxGasStationCapacities.regular + 1));
+        let midgrade = Math.floor(Math.random() * (maxGasStationCapacities.midgrade + 1));
+        let premium = Math.floor(Math.random() * (maxGasStationCapacities.premium + 1));
+
+        station.fuelAmounts = { regular, midgrade, premium };
+        station.totalFuelAmount = regular + midgrade + premium;
+    });
+
+    // Assign random prices for each type of gasoline
+    assignRandomPrices();
+    getGasPricePosition();
+}
+
+// Helper function that takes the total fuel amount as an argument and returns three random numbers that add up to that total.
+// These three numbers represent the amounts of regular, midgrade, and premium fuel.
+function distributeFuel(totalFuel) {
+    let remainingFuel = totalFuel;
+    
+    let regular = Math.floor(Math.random() * remainingFuel);
+    remainingFuel -= regular;
+
+    let midgrade = Math.floor(Math.random() * remainingFuel);
+    remainingFuel -= midgrade;
+
+    let premium = remainingFuel;  // What's left goes to premium
+
+    return [regular, midgrade, premium];
+}
+
+// Fuel amounts + prices
+document.getElementById("get-fuel").addEventListener("click", function() {
+    assignFuelAmounts();
+    ordersGenerated = true; // Set the flag to true after generating fuel amounts
+
+    let refineriesOutput = "<h3>Refineries</h3><table><tr><th>Refinery</th><th>Total Fuel Capacity</th><th>Regular</th><th>Regular Price</th><th>Midgrade</th><th>Midgrade Price</th><th>Premium</th><th>Premium Price</th></tr>";
+    refineries.forEach(refinery => {
+        refineriesOutput += `<tr>
+            <td>${refinery.title}</td>
+            <td>${refinery.totalFuelAmount} gallons</td>
+            <td>${refinery.fuelAmounts.regular} gallons</td>
+            <td>$${refinery.prices.regular}/gal</td>
+            <td>${refinery.fuelAmounts.midgrade} gallons</td>
+            <td>$${refinery.prices.midgrade}/gal</td>
+            <td>${refinery.fuelAmounts.premium} gallons</td>
+            <td>$${refinery.prices.premium}/gal</td>
+        </tr>`;
+    });
+    refineriesOutput += "</table>";
+
+    let gasStationsOutput = "<h3>Gas Stations</h3><table><tr><th>Refinery</th><th>Total Fuel Capacity</th><th>Regular</th><th>Regular Price</th><th>Midgrade</th><th>Midgrade Price</th><th>Premium</th><th>Premium Price</th></tr>";
+    gasStations.forEach(gasStation => {
+        gasStationsOutput += `<tr>
+            <td>${gasStation.title}</td>
+            <td>${gasStation.totalFuelAmount} gallons</td>
+            <td>${gasStation.fuelAmounts.regular} gallons</td>
+            <td>$${gasStation.prices.regular}/gal</td>
+            <td>${gasStation.fuelAmounts.midgrade} gallons</td>
+            <td>$${gasStation.prices.midgrade}/gal</td>
+            <td>${gasStation.fuelAmounts.premium} gallons</td>
+            <td>$${gasStation.prices.premium}/gal</td>
+        </tr>`;
+    });
+    gasStationsOutput += "</table>";
+
+    document.getElementById("refineries-list").innerHTML = refineriesOutput;
+    document.getElementById("gas-stations-list").innerHTML = gasStationsOutput;
+});
+
+// Generate potential orders based on fuel amounts.
+// This function will calculate the amount of each type of fuel needed to fill each gas station's tanks to their maximum capacities.
+// It will then identify the closest and second closest refineries that can fulfill these needs.
+// It will also calculate the total cost of the orders based on the prices at those refineries.
+document.getElementById("generate-orders").addEventListener("click", async function() {
+    // Ensure we have fuel amounts
+    if (!refineries || !gasStations) {
+        alert("Please click 'Get Fuel Amounts' first to generate fuel amounts.");
+        return;
+    }
+
+    const ordersOutput = document.getElementById("potential-orders");
+    ordersOutput.innerHTML = "<h3>Potential Orders</h3>";
+
+    for (const gasStation of gasStations) {
+        // Calculate how much of each type is needed
+        const needed = {
+            regular: maxGasStationCapacities.regular - gasStation.fuelAmounts.regular,
+            midgrade: maxGasStationCapacities.midgrade - gasStation.fuelAmounts.midgrade,
+            premium: maxGasStationCapacities.premium - gasStation.fuelAmounts.premium
+        };
+
+        let closestRefineries = [];  // To store the closest refineries and their info
+
+        for (const refinery of refineries) {
+            if (refinery.fuelAmounts.regular < needed.regular ||
+                refinery.fuelAmounts.midgrade < needed.midgrade ||
+                refinery.fuelAmounts.premium < needed.premium) {
+                    console.log(`Skipping ${refinery.title} for ${gasStation.title} due to insufficient fuel.`);
+                    continue;  // Skip if the refinery can't meet the demand
+            }
+
+            // Get the distance and duration
+            const distanceAndDuration = await displayDistanceAndDuration(refinery, gasStation);
+            const distance = parseFloat(distanceAndDuration.distance.replace(" mi", ""));
+
+            // Calculate the total cost of the order
+            const totalCost = needed.regular * refinery.prices.regular +
+                              needed.midgrade * refinery.prices.midgrade +
+                              needed.premium * refinery.prices.premium;
+
+            closestRefineries.push({
+                refinery,
+                distance,
+                duration: distanceAndDuration.duration,
+                totalCost
+            });
+        }
+
+        // Sort the array by distance
+        closestRefineries.sort((a, b) => a.distance - b.distance);
+
+        // Display the two closest options
+        if (closestRefineries.length >= 2) {
+            const closest = closestRefineries[0];
+            const secondClosest = closestRefineries[1];
+
+            ordersOutput.innerHTML += `
+                <h4>Options for ${gasStation.title}</h4>
+                <table>
+                    <tr>
+                        <th>Refinery</th>
+                        <th>Distance</th>
+                        <th>Duration</th>
+                        <th>Total Cost</th>
+                    </tr>
+                    <tr data-refinery-index="${closest.refinery.title}" data-gas-station-index="${gasStation.title}" class="order-row">
+                        <td>${closest.refinery.title}</td>
+                        <td>${closest.distance} miles</td>
+                        <td>${closest.duration}</td>
+                        <td>$${closest.totalCost.toFixed(2)}</td>
+                    </tr>
+                    <tr data-refinery-index="${secondClosest.refinery.title}" data-gas-station-index="${gasStation.title}" class="order-row">
+                        <td>${secondClosest.refinery.title}</td>
+                        <td>${secondClosest.distance} miles</td>
+                        <td>${secondClosest.duration}</td>
+                        <td>$${secondClosest.totalCost.toFixed(2)}</td>
+                    </tr>
+                </table>
+                <hr>
+            `;
+        }
+    }
+});
+
+
+// Clear any existing route on the map and then draw a new route based on the selected refinery and gas station.
+function updateMapWithRoute(selectedRefinery, selectedGasStation) {
+    // Create a Directions Request object
+    const request = {
+        origin: new google.maps.LatLng(selectedRefinery.lat, selectedRefinery.lng),
+        destination: new google.maps.LatLng(selectedGasStation.lat, selectedGasStation.lng),
+        travelMode: google.maps.TravelMode.DRIVING,
+    };
+
+    // Use the Directions Service to find a route between the two points
+    directionsService.route(request, function(result, status) {
+        if (status === google.maps.DirectionsStatus.OK) {
+            // If the route is successfully found, display it on the map
+            directionsRenderer.setDirections(result);
+        } else {
+            // If something went wrong, you can display a message or take other actions
+            window.alert('Directions request failed due to ' + status);
+        }
+    });
+}
+
+
+// Listen for clicks on the potential-orders div
+// Event Delegation: Add a single click event listener to the parent div with the id potential-orders.
+//      When a click event occurs, check if it is one of the rows (tr elements) that should be clickable.
+// Update Route: If the clicked row is a valid order, call updateMapWithRoute to show the route on the map.
+
+document.getElementById('potential-orders').addEventListener('click', function(event) {
+    console.log("Clicked inside potential-orders div");  // Debugging line
+    const target = event.target;
+    const parentRow = target.closest('.order-row'); // Find the closest parent row of the clicked element
+    
+    // If we clicked on an order row
+    if (parentRow) {
+        const refineryTitle = parentRow.getAttribute('data-refinery-index');
+        const gasStationTitle = parentRow.getAttribute('data-gas-station-index');
+        
+        const selectedRefinery = refineries.find(r => r.title === refineryTitle);
+        const selectedGasStation = gasStations.find(g => g.title === gasStationTitle);
+        
+        // Update the map here using selectedRefinery and selectedGasStation
+        updateMapWithRoute(selectedRefinery, selectedGasStation);
+    }
+});
+
+
+</script>
+
+<!--<script src="config.js"></script>-->
+<!--<script src="https://maps.googleapis.com/maps/api/js?key={API_KEY}&callback=initMap&libraries=&v=weekly" async></script>
+ -->
+<!-- Add Google Maps JavaScript API -->
+<!--<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAkS4zu5MoOmw20zz7V_NEu1k_ZPJ-gH_0&callback=initMap&libraries=&v=weekly" async></script> -->
+<!-- Add Directions API -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAkS4zu5MoOmw20zz7V_NEu1k_ZPJ-gH_0&callback=initMap&libraries=&v=weekly,directions" async></script>
+
+</body>
+</html>
