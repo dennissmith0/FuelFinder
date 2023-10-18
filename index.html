@@ -280,6 +280,7 @@ function assignFuelAmounts() {
         let premium = Math.floor(Math.random() * (maxGasStationCapacities.premium + 1));
 
         station.fuelAmounts = { regular, midgrade, premium };
+        station.totalFuelAmount = regular + midgrade + premium;
     });
 
     // Assign random prices for each type of gasoline
@@ -359,9 +360,9 @@ document.getElementById("generate-orders").addEventListener("click", async funct
     for (const gasStation of gasStations) {
         // Calculate how much of each type is needed
         const needed = {
-            regular: maxGasStationCapacities.regular - gasStation.fuelByType.regular,
-            midgrade: maxGasStationCapacities.midgrade - gasStation.fuelByType.midgrade,
-            premium: maxGasStationCapacities.premium - gasStation.fuelByType.premium
+            regular: maxGasStationCapacities.regular - gasStation.fuelAmounts.regular,
+            midgrade: maxGasStationCapacities.midgrade - gasStation.fuelAmounts.midgrade,
+            premium: maxGasStationCapacities.premium - gasStation.fuelAmounts.premium
         };
 
         let closestRefineries = [];  // To store the closest refineries and their info
