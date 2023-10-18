@@ -250,15 +250,21 @@ function getGasPricePosition(gasType, currentPrice) {
   return position.toFixed(2) + '%';
 }
 
-
-// Get Fuel amounts
-function assignFuelAmounts() {
-    const maxFuelAmounts = {
+const maxFuelAmounts = {
         "Holly Refining Co.": 850500 / 8,
         "Big West Oil LLC": 661500 / 3,
         "Chevron Refinery": 1067000 / 3,
         "Silver Eagle Refining": (1067000 / 3 + 661500 / 3 + 850500 / 3) / 3 // no info on barrels/day. Average the other 3
     };
+
+const maxGasStationCapacities = {
+        regular: 40000,
+        midgrade: 30000,
+        premium: 30000
+    };
+
+// Get Fuel amounts
+function assignFuelAmounts() {
 
     refineries.forEach((refinery) => {
         const maxFuel = maxFuelAmounts[refinery.title];
@@ -267,12 +273,6 @@ function assignFuelAmounts() {
         let [regular, midgrade, premium] = distributeFuel(refinery.totalFuelAmount);
         refinery.fuelAmounts = { regular, midgrade, premium };
     });
-
-    const maxGasStationCapacities = {
-        regular: 40000,
-        midgrade: 30000,
-        premium: 30000
-    };
 
     gasStations.forEach(station => {
         let regular = Math.floor(Math.random() * (maxGasStationCapacities.regular + 1));
@@ -435,7 +435,7 @@ document.getElementById("generate-orders").addEventListener("click", async funct
 <!--<script src="https://maps.googleapis.com/maps/api/js?key={API_KEY}&callback=initMap&libraries=&v=weekly" async></script>
  -->
 <!-- Add Google Maps JavaScript API -->
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAkS4zu5MoOmw20zz7V_NEu1k_ZPJ-gH_0&callback=initMap&libraries=&v=weekly" async></script>
+<!--<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAkS4zu5MoOmw20zz7V_NEu1k_ZPJ-gH_0&callback=initMap&libraries=&v=weekly" async></script> -->
 <!-- Add Directions API -->
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAkS4zu5MoOmw20zz7V_NEu1k_ZPJ-gH_0&callback=initMap&libraries=&v=weekly,directions" async></script>
 
