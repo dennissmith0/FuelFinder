@@ -1,17 +1,20 @@
+
 # FuelFinder
 
 ## Table of Contents
 1. [Overview](#overview)
 2. [Features](#features)
-    - [Detailed Explanation](#detailed-explanation)
     - [Simple Explanation](#simple-explanation)
-3. [Installation](#installation)
-4. [Usage](#usage)
-5. [Contributing](#contributing)
-6. [License](#license)
+    - [Detailed Explanation](#detailed-explanation)
 
 ## Overview
+Check it out here! https://dennissmith0.github.io/FuelFinder/
+
+Currently only modeled on the Salt Lake City area.
+
 The project aims to model a fuel supply chain management system where refineries supply fuel to gas stations. The system offers functionalities such as mapping, distance calculations, and order generation to help optimize the supply chain.
+
+## Features
 
 ### Simple Explanation
 
@@ -30,8 +33,6 @@ Our project is a tool for managing fuel supply from refineries to gas stations. 
 - You can click on any of these potential orders to see the best route on the map.
 
 The tool uses Google Maps to show locations and calculate routes. It's a great way to make informed decisions about where to send fuel!
-
-## Features
 
 ### Detailed Explanation
 
@@ -62,3 +63,4 @@ The project aims to model a fuel supply chain management system where refineries
 - The application uses Google Maps and Directions API to provide geospatial data and directions.
 - The application simulates a day's activity in the supply chain by randomizing fuel amounts and prices, aiming to provide insights on optimal supply chain decisions.
 - We use Promise-based asynchronous code to handle API calls and ensure the UI remains responsive.
+
