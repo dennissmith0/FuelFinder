@@ -368,9 +368,9 @@ document.getElementById("generate-orders").addEventListener("click", async funct
         let closestRefineries = [];  // To store the closest refineries and their info
 
         for (const refinery of refineries) {
-            if (refinery.fuelByType.regular < needed.regular ||
-                refinery.fuelByType.midgrade < needed.midgrade ||
-                refinery.fuelByType.premium < needed.premium) {
+            if (refinery.fuelAmounts.regular < needed.regular ||
+                refinery.fuelAmounts.midgrade < needed.midgrade ||
+                refinery.fuelAmounts.premium < needed.premium) {
                     continue;  // Skip if the refinery can't meet the demand
             }
 
