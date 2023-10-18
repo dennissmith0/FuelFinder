@@ -409,13 +409,13 @@ document.getElementById("generate-orders").addEventListener("click", async funct
                         <th>Duration</th>
                         <th>Total Cost</th>
                     </tr>
-                    <tr id="${closest.refinery.title}" data-gas-station-index="${gasStation.title}" class="order-row">
+                    <tr data-refinery-index="${closest.refinery.title}" data-gas-station-index="${gasStation.title}" class="order-row">
                         <td>${closest.refinery.title}</td>
                         <td>${closest.distance} miles</td>
                         <td>${closest.duration}</td>
                         <td>$${closest.totalCost.toFixed(2)}</td>
                     </tr>
-                    <tr id="${secondClosest.refinery.title}" data-gas-station-index="${gasStation.title}" class="order-row">
+                    <tr data-refinery-index="${secondClosest.refinery.title}" data-gas-station-index="${gasStation.title}" class="order-row">
                         <td>${secondClosest.refinery.title}</td>
                         <td>${secondClosest.distance} miles</td>
                         <td>${secondClosest.duration}</td>
@@ -425,16 +425,7 @@ document.getElementById("generate-orders").addEventListener("click", async funct
                 <hr>
             `;
         }
-
-        closestRefineries.forEach(closest => {
-            const rowId = `${closest.refinery.title}-${gasStation.title}`;
-            const rowElement = document.getElementById(rowId);
-            
-            if (rowElement) {
-                rowElement.addEventListener("click", function() {
-                    updateMapWithRoute(closest.refinery, gasStation);
-                });
-            }
+    }
 });
 
 
