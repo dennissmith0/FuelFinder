@@ -177,7 +177,7 @@ async function displayDistanceAndDuration(origin, destination) {
         );
     });
     console.log('Distance and Duration:', { distance: results.distance.text, duration: results.duration.text });
-    resolve({ distance: results.distance.text, duration: results.duration.text });
+    // resolve({ distance: results.distance.text, duration: results.duration.text });
    
 }
 
@@ -330,11 +330,11 @@ document.getElementById("get-fuel").addEventListener("click", function() {
             <td>${gasStation.title}</td>
             <td>${gasStation.totalFuelAmount} gallons</td>
             <td>${gasStation.fuelAmounts.regular} gallons</td>
-            <td>${gasStation.prices.regular} $/gal</td>
+            <td>$ ${gasStation.prices.regular}/gal</td>
             <td>${gasStation.fuelAmounts.midgrade} gallons</td>
-            <td>${gasStation.prices.midgrade} $/gal</td>
+            <td>$ ${gasStation.prices.midgrade} $/gal</td>
             <td>${gasStation.fuelAmounts.premium} gallons</td>
-            <td>${gasStation.prices.premium} $/gal</td>
+            <td>$ ${gasStation.prices.premium} $/gal</td>
         </tr>`;
     });
     gasStationsOutput += "</table>";
@@ -457,6 +457,7 @@ function updateMapWithRoute(selectedRefinery, selectedGasStation) {
 // Update Route: If the clicked row is a valid order, call updateMapWithRoute to show the route on the map.
 
 document.getElementById('potential-orders').addEventListener('click', function(event) {
+    console.log("Clicked inside potential-orders div");  // Debugging line
     const target = event.target;
     const parentRow = target.closest('.order-row'); // Find the closest parent row of the clicked element
     
