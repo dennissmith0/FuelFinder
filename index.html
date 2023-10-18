@@ -8,6 +8,18 @@
             height: 500px;
             width: 700px;
         }
+        table {
+        width: 100%;
+        border-collapse: collapse;
+        }
+        th, td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+        }
+        th {
+        background-color: #f2f2f2;
+        }
     </style>
 </head>
 <body>
@@ -302,11 +314,11 @@ document.getElementById("get-fuel").addEventListener("click", function() {
         refineriesOutput += `<tr>
             <td>${refinery.title}</td>
             <td>${refinery.totalFuelAmount} gallons</td>
-            <td>${refinery.fuelAmounts.regular} gal</td>
+            <td>${refinery.fuelAmounts.regular} gallons</td>
             <td>${refinery.prices.regular} $/gal</td>
-            <td>${refinery.fuelAmounts.midgrade} gal</td>
+            <td>${refinery.fuelAmounts.midgrade} gallons</td>
             <td>${refinery.prices.midgrade} $/gal</td>
-            <td>${refinery.fuelAmounts.premium} gal</td>
+            <td>${refinery.fuelAmounts.premium} gallons</td>
             <td>${refinery.prices.premium} $/gal</td>
         </tr>`;
     });
