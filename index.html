@@ -429,20 +429,6 @@ document.getElementById("generate-orders").addEventListener("click", async funct
 });
 
 
-document.querySelectorAll('.order-row').forEach(row => {
-    row.addEventListener('click', function(event) {
-        const refineryTitle = this.getAttribute('data-refinery-index');
-        const gasStationTitle = this.getAttribute('data-gas-station-index');
-        
-        const selectedRefinery = refineries.find(r => r.title === refineryTitle);
-        const selectedGasStation = gasStations.find(g => g.title === gasStationTitle);
-        
-        // Update the map here using selectedRefinery and selectedGasStation
-        // You can call your existing function that updates the map route
-        updateMapWithRoute(selectedRefinery, selectedGasStation);
-    });
-});
-
 // Clear any existing route on the map and then draw a new route based on the selected refinery and gas station.
 function updateMapWithRoute(selectedRefinery, selectedGasStation) {
     // Create a Directions Request object
@@ -464,6 +450,28 @@ function updateMapWithRoute(selectedRefinery, selectedGasStation) {
     });
 }
 
+
+// Listen for clicks on the potential-orders div
+// Event Delegation: Add a single click event listener to the parent div with the id potential-orders.
+//      When a click event occurs, check if it is one of the rows (tr elements) that should be clickable.
+// Update Route: If the clicked row is a valid order, call updateMapWithRoute to show the route on the map.
+
+document.getElementById('potential-orders').addEventListener('click', function(event) {
+    const target = event.target;
+    const parentRow = target.closest('.order-row'); // Find the closest parent row of the clicked element
+    
+    // If we clicked on an order row
+    if (parentRow) {
+        const refineryTitle = parentRow.getAttribute('data-refinery-index');
+        const gasStationTitle = parentRow.getAttribute('data-gas-station-index');
+        
+        const selectedRefinery = refineries.find(r => r.title === refineryTitle);
+        const selectedGasStation = gasStations.find(g => g.title === gasStationTitle);
+        
+        // Update the map here using selectedRefinery and selectedGasStation
+        updateMapWithRoute(selectedRefinery, selectedGasStation);
+    }
+});
 
 
 </script>
