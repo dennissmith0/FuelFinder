@@ -268,19 +268,18 @@ function assignFuelAmounts() {
         refinery.fuelAmounts = { regular, midgrade, premium };
     });
 
+    const maxGasStationCapacities = {
+        regular: 40000,
+        midgrade: 30000,
+        premium: 30000
+    };
+
     gasStations.forEach(station => {
-        let totalFuelAmount = Math.floor(Math.random() * 24001);  // Random value between 0 and 24000 gallons
+        let regular = Math.floor(Math.random() * (maxGasStationCapacities.regular + 1));
+        let midgrade = Math.floor(Math.random() * (maxGasStationCapacities.midgrade + 1));
+        let premium = Math.floor(Math.random() * (maxGasStationCapacities.premium + 1));
 
-        let regularPercentage = Math.random();
-        let midgradePercentage = Math.random() * (1 - regularPercentage);
-        let premiumPercentage = 1 - regularPercentage - midgradePercentage;
-
-        station.totalFuelAmount = totalFuelAmount;
-        station.fuelAmounts = {
-            regular: Math.floor(totalFuelAmount * regularPercentage),
-            midgrade: Math.floor(totalFuelAmount * midgradePercentage),
-            premium: Math.floor(totalFuelAmount * premiumPercentage)
-        };
+        station.fuelAmounts = { regular, midgrade, premium };
     });
 
     // Assign random prices for each type of gasoline
@@ -343,7 +342,10 @@ document.getElementById("get-fuel").addEventListener("click", function() {
     document.getElementById("gas-stations-list").innerHTML = gasStationsOutput;
 });
 
-// Generate potential orders based on fuel amounts 
+// Generate potential orders based on fuel amounts.
+// This function will calculate the amount of each type of fuel needed to fill each gas station's tanks to their maximum capacities.
+// It will then identify the closest and second closest refineries that can fulfill these needs.
+// It will also calculate the total cost of the orders based on the prices at those refineries.
 document.getElementById("generate-orders").addEventListener("click", async function() {
     // Ensure we have fuel amounts
     if (!refineries || !gasStations) {
@@ -351,59 +353,77 @@ document.getElementById("generate-orders").addEventListener("click", async funct
         return;
     }
 
-    const maxGasStationCapacity = 24000; // Max capacity for a gas station
-    const orders = [];
-
-    for (const gasStation of gasStations) {
-        let gallonsNeeded = maxGasStationCapacity - gasStation.fuelAmount;
-        if (gallonsNeeded <= 0) continue;
-
-        let closestRefinery = null;
-        let closestDistance = Number.MAX_VALUE;
-        let closestDuration = "";
-
-        for (const refinery of refineries) {
-            if (refinery.fuelAmount < gallonsNeeded) continue;
-
-            try {
-                const distanceAndDuration = await displayDistanceAndDuration(refinery, gasStation);
-                
-                const distance = parseFloat(distanceAndDuration.distance.replace(" mi", ""));
-                
-                if (distance < closestDistance) {
-                    closestDistance = distance;
-                    closestRefinery = refinery;
-                    closestDuration = distanceAndDuration.duration;
-                }
-            } catch (error) {
-                console.error('Error:', error);
-            }
-        }
-
-        if (closestRefinery) {
-            orders.push({
-                gasStation: gasStation,
-                refinery: closestRefinery,
-                distance: closestDistance,
-                duration: closestDuration,
-                gallonsToFill: gallonsNeeded,
-            });
-        }
-    }
-
-    // Display the generated orders
     const ordersOutput = document.getElementById("potential-orders");
     ordersOutput.innerHTML = "<h3>Potential Orders</h3>";
-    orders.forEach(order => {
-        ordersOutput.innerHTML += `
-            <p>Gas Station: ${order.gasStation.title}</p>
-            <p>Refinery: ${order.refinery.title}</p>
-            <p>Distance: ${order.distance} miles</p>
-            <p>Duration: ${order.duration}</p>
-            <p>Gallons to Fill: ${order.gallonsToFill} gallons</p>
-            <hr>
-        `;
-    });
+
+    for (const gasStation of gasStations) {
+        // Calculate how much of each type is needed
+        const needed = {
+            regular: maxGasStationCapacities.regular - gasStation.fuelByType.regular,
+            midgrade: maxGasStationCapacities.midgrade - gasStation.fuelByType.midgrade,
+            premium: maxGasStationCapacities.premium - gasStation.fuelByType.premium
+        };
+
+        let closestRefineries = [];  // To store the closest refineries and their info
+
+        for (const refinery of refineries) {
+            if (refinery.fuelByType.regular < needed.regular ||
+                refinery.fuelByType.midgrade < needed.midgrade ||
+                refinery.fuelByType.premium < needed.premium) {
+                    continue;  // Skip if the refinery can't meet the demand
+            }
+
+            // Get the distance and duration
+            const distanceAndDuration = await displayDistanceAndDuration(refinery, gasStation);
+            const distance = parseFloat(distanceAndDuration.distance.replace(" mi", ""));
+
+            // Calculate the total cost of the order
+            const totalCost = needed.regular * refinery.prices.regular +
+                              needed.midgrade * refinery.prices.midgrade +
+                              needed.premium * refinery.prices.premium;
+
+            closestRefineries.push({
+                refinery,
+                distance,
+                duration: distanceAndDuration.duration,
+                totalCost
+            });
+        }
+
+        // Sort the array by distance
+        closestRefineries.sort((a, b) => a.distance - b.distance);
+
+        // Display the two closest options
+        if (closestRefineries.length >= 2) {
+            const closest = closestRefineries[0];
+            const secondClosest = closestRefineries[1];
+
+            ordersOutput.innerHTML += `
+                <h4>Options for ${gasStation.title}</h4>
+                <table>
+                    <tr>
+                        <th>Refinery</th>
+                        <th>Distance</th>
+                        <th>Duration</th>
+                        <th>Total Cost</th>
+                    </tr>
+                    <tr>
+                        <td>${closest.refinery.title}</td>
+                        <td>${closest.distance} miles</td>
+                        <td>${closest.duration}</td>
+                        <td>$${closest.totalCost.toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                        <td>${secondClosest.refinery.title}</td>
+                        <td>${secondClosest.distance} miles</td>
+                        <td>${secondClosest.duration}</td>
+                        <td>$${secondClosest.totalCost.toFixed(2)}</td>
+                    </tr>
+                </table>
+                <hr>
+            `;
+        }
+    }
 });
 
 
