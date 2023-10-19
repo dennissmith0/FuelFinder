@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAkS4zu5MoOmw20zz7V_NEu1k_ZPJ-gH_0&libraries=places&callback=initMap&v=weekly"></script>
+
     <title>Salt Lake</title>
     <style>
         /* Set the size of your map */
@@ -8,23 +10,55 @@
             height: 500px;
             width: 700px;
         }
+
         table {
         width: 100%;
         border-collapse: collapse;
         }
+
         th, td {
         border: 1px solid #ddd;
         padding: 8px;
         text-align: left;
         }
+
         th {
         background-color: #f2f2f2;
         }
+
         .order-row {
         cursor: pointer;
         }
+
         .order-row:hover {
         background-color: #f0f0f0;
+        }
+        
+        /* Container layout for the main content */
+        div[style="display: flex;"] {
+            display: flex;
+            height: 100vh; /* 100% of the viewport height */
+        }
+
+        /* Map container */
+        div[style="width: 40%;"] {
+            flex: 0 0 40%; /* Don't grow, don't shrink, stay at 40% width */
+            height: 100%;
+            overflow: auto; /* Scrollable content */
+            position: sticky; /* Fixed position */
+            top: 0; /* Stick to the top */
+        }
+
+        /* Right-side container */
+        div[style="width: 60%; margin-left: 20px;"] {
+            flex: 1; /* Take up the remaining space */
+            height: 100%;
+            overflow: auto; /* Scrollable content */
+        }
+
+        .scrollable-table {
+        height: 250px; /* Adjust this value according to the size of 5 rows */
+        overflow-y: auto; /* Make it scrollable vertically */
         }
     </style>
 </head>
@@ -55,7 +89,9 @@
         <button id="get-fuel">Get Fuel Amounts</button>
         <div id="fuel-output"></div>
         <div id="refineries-list"></div>
-        <div id="gas-stations-list"></div>
+        <div class="scrollable-table">
+            <div id="gas-stations-list"></div>
+        </div>
         <button id="generate-orders">Generate Orders</button>
         <div id="potential-orders"></div>
     </div>
@@ -69,6 +105,7 @@ let gasStations;
 
 // define location of refineries & sites 
 let directionsService, directionsRenderer;
+let placesService;
 
 function initMap() {
   const map = new google.maps.Map(document.getElementById("gmp-map"), {
@@ -123,7 +160,73 @@ function initMap() {
         title: selectedGasStation.title,
         });
     });
+    // Initialize Places service
+    placesService = new google.maps.places.PlacesService(map);
+
+    searchGasStations();
 }
+
+
+function searchGasStations() {
+  const request = {
+    location: new google.maps.LatLng(40.7608, -111.8910), // Salt Lake City coordinates
+    radius: '50000', // 50,000 meters ~ 50 km
+    type: ['gas_station'],
+    keyword: ['Maverik']
+  };
+
+  placesService.nearbySearch(request, handleResults);
+}
+
+function handleResults(results, status, pagination) {
+    console.log(results); // Are we actually getting results from searchGasStations?
+    if (status === google.maps.places.PlacesServiceStatus.OK) {
+        // Clear previous gas stations
+        gasStations = [];
+
+        for (let i = 0; i < results.length; i++) {
+        const place = results[i];
+        
+        // Extract city name from vicinity
+        const addressParts = place.vicinity.split(", ");
+        const cityName = addressParts[addressParts.length - 1];
+
+        const gasStation = {
+            id: i,
+            title: `Maverik (${cityName})`,
+            location: place.geometry.location,
+            lat: place.geometry.location.lat(),  // Extract lat
+            lng: place.geometry.location.lng(),  // Extract lng
+            //fuelLevel: Math.random() * 10000,
+        };
+        gasStations.push(gasStation);
+        }
+    // Limit to 25 results
+    // let limitedResults = results.slice(0, 25);
+
+    // // Populate your gasStations array and dropdown here
+    // gasStations = limitedResults.map(result => {
+    //   return {
+    //     lat: result.geometry.location.lat(),
+    //     lng: result.geometry.location.lng(),
+    //     title: result.name
+    //   };
+    // });
+    
+    // // Update the dropdown options
+    // const gasStationSelect = document.getElementById("gas-station-select");
+    //     gasStationSelect.innerHTML = '<option value="-1">Select a Site:</option>';  // Clear existing options
+    //     gasStations.forEach((station, index) => {
+    //     const option = document.createElement("option");
+    //     option.value = index;
+    //     option.text = station.title;
+    //     gasStationSelect.add(option);
+    //     });
+  }
+}
+
+// Call searchGasStations function at an appropriate place, for example, at the end of initMap()
+
 
 // Fetch distance and duration between a refinery and a site from the Distance Matrix API
 document.getElementById("get-distance").addEventListener("click", async function() {
@@ -330,7 +433,7 @@ document.getElementById("get-fuel").addEventListener("click", function() {
     });
     refineriesOutput += "</table>";
 
-    let gasStationsOutput = "<h3>Gas Stations</h3><table><tr><th>Refinery</th><th>Total Fuel Capacity</th><th>Regular</th><th>Regular Price</th><th>Midgrade</th><th>Midgrade Price</th><th>Premium</th><th>Premium Price</th></tr>";
+    let gasStationsOutput = "<h3>Gas Stations</h3><table><tr><th>Site</th><th>Total Fuel Capacity</th><th>Regular</th><th>Regular Price</th><th>Midgrade</th><th>Midgrade Price</th><th>Premium</th><th>Premium Price</th></tr>";
     gasStations.forEach(gasStation => {
         gasStationsOutput += `<tr>
             <td>${gasStation.title}</td>
@@ -371,7 +474,7 @@ document.getElementById("generate-orders").addEventListener("click", async funct
             premium: maxGasStationCapacities.premium - gasStation.fuelAmounts.premium
         };
 
-        let closestRefineries = [];  // To store the closest refineries and their info
+        let eligibleRefineries = [];  // To store the refineries that can meet the requirements
 
         for (const refinery of refineries) {
             if (refinery.fuelAmounts.regular < needed.regular ||
@@ -390,7 +493,7 @@ document.getElementById("generate-orders").addEventListener("click", async funct
                               needed.midgrade * refinery.prices.midgrade +
                               needed.premium * refinery.prices.premium;
 
-            closestRefineries.push({
+            eligibleRefineries.push({
                 refinery,
                 distance,
                 duration: distanceAndDuration.duration,
@@ -399,40 +502,69 @@ document.getElementById("generate-orders").addEventListener("click", async funct
         }
 
         // Sort the array by distance
-        closestRefineries.sort((a, b) => a.distance - b.distance);
+        eligibleRefineries.sort((a, b) => a.distance - b.distance);
 
-        // Display the two closest options
-        if (closestRefineries.length >= 2) {
-            const closest = closestRefineries[0];
-            const secondClosest = closestRefineries[1];
-
-            ordersOutput.innerHTML += `
-                <h4>Options for ${gasStation.title}</h4>
-                <table>
-                    <tr>
-                        <th>Refinery</th>
-                        <th>Distance</th>
-                        <th>Duration</th>
-                        <th>Total Cost</th>
-                    </tr>
-                    <tr data-refinery-index="${closest.refinery.title}" data-gas-station-index="${gasStation.title}" class="order-row">
-                        <td>${closest.refinery.title}</td>
-                        <td>${closest.distance} miles</td>
-                        <td>${closest.duration}</td>
-                        <td>$${closest.totalCost.toFixed(2)}</td>
-                    </tr>
-                    <tr data-refinery-index="${secondClosest.refinery.title}" data-gas-station-index="${gasStation.title}" class="order-row">
-                        <td>${secondClosest.refinery.title}</td>
-                        <td>${secondClosest.distance} miles</td>
-                        <td>${secondClosest.duration}</td>
-                        <td>$${secondClosest.totalCost.toFixed(2)}</td>
-                    </tr>
-                </table>
-                <hr>
+        // Display all eligible options
+        let tableRows = "";
+        for (const eligible of eligibleRefineries) {
+            tableRows += `
+                <tr data-refinery-index="${eligible.refinery.title}" data-gas-station-index="${gasStation.title}" class="order-row">
+                    <td>${eligible.refinery.title}</td>
+                    <td>${eligible.distance} miles</td>
+                    <td>${eligible.duration}</td>
+                    <td>$${eligible.totalCost.toFixed(2)}</td>
+                </tr>
             `;
         }
+        ordersOutput.innerHTML += `
+            <h4>Options for ${gasStation.title}</h4>
+            <table>
+                <tr>
+                    <th>Refinery</th>
+                    <th>Distance</th>
+                    <th>Duration</th>
+                    <th>Total Cost</th>
+                </tr>
+                ${tableRows}
+            </table>
+            <hr>
+        `;
     }
 });
+
+// Previous version
+//         // Display the two closest options
+//         if (eligibleRefineries.length >= 2) {
+//             const closest = eligibleRefineries[0];
+//             const secondClosest = eligibleRefineries[1];
+
+//             ordersOutput.innerHTML += `
+//                 <h4>Options for ${gasStation.title}</h4>
+//                 <table>
+//                     <tr>
+//                         <th>Refinery</th>
+//                         <th>Distance</th>
+//                         <th>Duration</th>
+//                         <th>Total Cost</th>
+//                     </tr>
+//                     <tr data-refinery-index="${closest.refinery.title}" data-gas-station-index="${gasStation.title}" class="order-row">
+//                         <td>${closest.refinery.title}</td>
+//                         <td>${closest.distance} miles</td>
+//                         <td>${closest.duration}</td>
+//                         <td>$${closest.totalCost.toFixed(2)}</td>
+//                     </tr>
+//                     <tr data-refinery-index="${secondClosest.refinery.title}" data-gas-station-index="${gasStation.title}" class="order-row">
+//                         <td>${secondClosest.refinery.title}</td>
+//                         <td>${secondClosest.distance} miles</td>
+//                         <td>${secondClosest.duration}</td>
+//                         <td>$${secondClosest.totalCost.toFixed(2)}</td>
+//                     </tr>
+//                 </table>
+//                 <hr>
+//             `;
+//         }
+//     }
+// });
 
 
 // Clear any existing route on the map and then draw a new route based on the selected refinery and gas station.
@@ -489,7 +621,6 @@ document.getElementById('potential-orders').addEventListener('click', function(e
 <!-- Add Google Maps JavaScript API -->
 <!--<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAkS4zu5MoOmw20zz7V_NEu1k_ZPJ-gH_0&callback=initMap&libraries=&v=weekly" async></script> -->
 <!-- Add Directions API -->
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAkS4zu5MoOmw20zz7V_NEu1k_ZPJ-gH_0&callback=initMap&libraries=&v=weekly,directions" async></script>
 
 </body>
 </html>
