@@ -101,11 +101,13 @@
 "use strict";
 
 let refineries;
-let gasStations;
+let gasStations = [];
 
 // define location of refineries & sites 
 let directionsService, directionsRenderer;
 let placesService;
+
+let isMapInitialized = false;
 
 function initMap() {
   const map = new google.maps.Map(document.getElementById("gmp-map"), {
@@ -164,6 +166,7 @@ function initMap() {
     placesService = new google.maps.places.PlacesService(map);
 
     searchGasStations();
+    isMapInitialized = true;
 }
 
 
@@ -178,54 +181,38 @@ function searchGasStations() {
   placesService.nearbySearch(request, handleResults);
 }
 
-function handleResults(results, status, pagination) {
-    console.log(results); // Are we actually getting results from searchGasStations?
+function handleResults(results, status) {
+    console.log("handleResults called");  // Debugging line
     if (status === google.maps.places.PlacesServiceStatus.OK) {
-        // Clear previous gas stations
-        gasStations = [];
+        const seen = new Set(); 
+        //gasStations = []; // Clear previous gas stations
 
         for (let i = 0; i < results.length; i++) {
-        const place = results[i];
-        
-        // Extract city name from vicinity
-        const addressParts = place.vicinity.split(", ");
-        const cityName = addressParts[addressParts.length - 1];
+            const place = results[i];
+            const lat = parseFloat(place.geometry.location.lat().toFixed(6));
+            const lng = parseFloat(place.geometry.location.lng().toFixed(6));
+            const uniqueKey = `${lat}-${lng}`;
+            console.log("Seen so far:", seen);  // Debugging line
 
-        const gasStation = {
-            id: i,
-            title: `Maverik (${cityName})`,
-            location: place.geometry.location,
-            lat: place.geometry.location.lat(),  // Extract lat
-            lng: place.geometry.location.lng(),  // Extract lng
-            //fuelLevel: Math.random() * 10000,
-        };
-        gasStations.push(gasStation);
+            if (!seen.has(uniqueKey)) {
+                seen.add(uniqueKey);
+                const addressParts = place.vicinity.split(", ");
+                const cityName = addressParts[addressParts.length - 1];
+
+                const gasStation = {
+                    id: i,
+                    title: `Maverik (${cityName})`,
+                    location: place.geometry.location,
+                    lat,
+                    lng
+                };
+                gasStations.push(gasStation);
+            } else {
+                console.log("Duplicate detected:", uniqueKey);  // Debugging line
+            }
         }
-    // Limit to 25 results
-    // let limitedResults = results.slice(0, 25);
-
-    // // Populate your gasStations array and dropdown here
-    // gasStations = limitedResults.map(result => {
-    //   return {
-    //     lat: result.geometry.location.lat(),
-    //     lng: result.geometry.location.lng(),
-    //     title: result.name
-    //   };
-    // });
-    
-    // // Update the dropdown options
-    // const gasStationSelect = document.getElementById("gas-station-select");
-    //     gasStationSelect.innerHTML = '<option value="-1">Select a Site:</option>';  // Clear existing options
-    //     gasStations.forEach((station, index) => {
-    //     const option = document.createElement("option");
-    //     option.value = index;
-    //     option.text = station.title;
-    //     gasStationSelect.add(option);
-    //     });
-  }
+    }
 }
-
-// Call searchGasStations function at an appropriate place, for example, at the end of initMap()
 
 
 // Fetch distance and duration between a refinery and a site from the Distance Matrix API
@@ -360,16 +347,16 @@ function getGasPricePosition(gasType, currentPrice) {
 }
 
 const maxFuelAmounts = {
-        "Holly Refining Co.": 850500 / 8,
-        "Big West Oil LLC": 661500 / 3,
-        "Chevron Refinery": 1067000 / 3,
-        "Silver Eagle Refining": (1067000 / 3 + 661500 / 3 + 850500 / 3) / 3 // no info on barrels/day. Average the other 3
+        "Holly Refining Co.": 850500 / 2, // 850500 / 8, change to 2 states rather than 8 for more order possibilities. same below
+        "Big West Oil LLC": 661500 / 1.5, //661500 / 3,
+        "Chevron Refinery": 1067000 / 1.5 , //1067000 / 3,
+        "Silver Eagle Refining": (1067000 / 3 + 661500 / 3 + 850500 / 3) / 1.5 // (1067000 / 3 + 661500 / 3 + 850500 / 3) / 3 // no info on barrels/day. Average the other 3
     };
 
 const maxGasStationCapacities = {
         regular: 40000,
-        midgrade: 30000,
-        premium: 30000
+        midgrade: 40000,
+        premium: 40000
     };
 
 // Get Fuel amounts
@@ -466,6 +453,7 @@ document.getElementById("generate-orders").addEventListener("click", async funct
     const ordersOutput = document.getElementById("potential-orders");
     ordersOutput.innerHTML = "<h3>Potential Orders</h3>";
 
+    
     for (const gasStation of gasStations) {
         // Calculate how much of each type is needed
         const needed = {
@@ -474,101 +462,102 @@ document.getElementById("generate-orders").addEventListener("click", async funct
             premium: maxGasStationCapacities.premium - gasStation.fuelAmounts.premium
         };
 
-        let eligibleRefineries = [];  // To store the refineries that can meet the requirements
+        const increase25 = {
+            regular: gasStation.fuelAmounts.regular * 0.25,
+            midgrade: gasStation.fuelAmounts.midgrade * 0.25,
+            premium: gasStation.fuelAmounts.premium * 0.25
+        };
+
+        let eligibleRefineries100 = [];  // To store the refineries that can meet 100% fill requirements
+        let eligibleRefineries25 = [];  // To store the refineries that can meet 25% fill requirements
 
         for (const refinery of refineries) {
-            if (refinery.fuelAmounts.regular < needed.regular ||
-                refinery.fuelAmounts.midgrade < needed.midgrade ||
-                refinery.fuelAmounts.premium < needed.premium) {
-                    console.log(`Skipping ${refinery.title} for ${gasStation.title} due to insufficient fuel.`);
-                    continue;  // Skip if the refinery can't meet the demand
+            // Check eligibility for 100% fill
+            if (refinery.fuelAmounts.regular >= needed.regular &&
+                refinery.fuelAmounts.midgrade >= needed.midgrade &&
+                refinery.fuelAmounts.premium >= needed.premium) {
+
+                const distanceAndDuration = await displayDistanceAndDuration(refinery, gasStation);
+                const distance = parseFloat(distanceAndDuration.distance.replace(" mi", ""));
+                const totalCost100 = needed.regular * refinery.prices.regular +
+                                     needed.midgrade * refinery.prices.midgrade +
+                                     needed.premium * refinery.prices.premium;
+
+                eligibleRefineries100.push({
+                    refinery,
+                    distance,
+                    duration: distanceAndDuration.duration,
+                    totalCost: totalCost100
+                });
             }
 
-            // Get the distance and duration
-            const distanceAndDuration = await displayDistanceAndDuration(refinery, gasStation);
-            const distance = parseFloat(distanceAndDuration.distance.replace(" mi", ""));
+            // Check eligibility for 25% fill
+            if (refinery.fuelAmounts.regular >= increase25.regular &&
+                refinery.fuelAmounts.midgrade >= increase25.midgrade &&
+                refinery.fuelAmounts.premium >= increase25.premium) {
 
-            // Calculate the total cost of the order
-            const totalCost = needed.regular * refinery.prices.regular +
-                              needed.midgrade * refinery.prices.midgrade +
-                              needed.premium * refinery.prices.premium;
+                const distanceAndDuration = await displayDistanceAndDuration(refinery, gasStation);
+                const distance = parseFloat(distanceAndDuration.distance.replace(" mi", ""));
+                const totalCost25 = increase25.regular * refinery.prices.regular +
+                                    increase25.midgrade * refinery.prices.midgrade +
+                                    increase25.premium * refinery.prices.premium;
 
-            eligibleRefineries.push({
-                refinery,
-                distance,
-                duration: distanceAndDuration.duration,
-                totalCost
-            });
+                eligibleRefineries25.push({
+                    refinery,
+                    distance,
+                    duration: distanceAndDuration.duration,
+                    totalCost: totalCost25
+                });
+            }
         }
 
-        // Sort the array by distance
-        eligibleRefineries.sort((a, b) => a.distance - b.distance);
-
-        // Display all eligible options
-        let tableRows = "";
-        for (const eligible of eligibleRefineries) {
-            tableRows += `
-                <tr data-refinery-index="${eligible.refinery.title}" data-gas-station-index="${gasStation.title}" class="order-row">
-                    <td>${eligible.refinery.title}</td>
-                    <td>${eligible.distance} miles</td>
-                    <td>${eligible.duration}</td>
-                    <td>$${eligible.totalCost.toFixed(2)}</td>
-                </tr>
-            `;
-        }
-        ordersOutput.innerHTML += `
-            <h4>Options for ${gasStation.title}</h4>
-            <table>
-                <tr>
-                    <th>Refinery</th>
-                    <th>Distance</th>
-                    <th>Duration</th>
-                    <th>Total Cost</th>
-                </tr>
-                ${tableRows}
-            </table>
-            <hr>
-        `;
+        // Sort and display 100% fill orders
+        eligibleRefineries100.sort((a, b) => a.distance - b.distance);
+        let tableRows100 = generateTableRows(eligibleRefineries100, gasStation.title);
+        
+        // Sort and display 25% fill orders
+        eligibleRefineries25.sort((a, b) => a.distance - b.distance);
+        let tableRows25 = generateTableRows(eligibleRefineries25, gasStation.title);
+        
+        // Append to output
+        ordersOutput.innerHTML += generateOutputHtml(gasStation.title, tableRows100, tableRows25);
     }
 });
 
-// Previous version
-//         // Display the two closest options
-//         if (eligibleRefineries.length >= 2) {
-//             const closest = eligibleRefineries[0];
-//             const secondClosest = eligibleRefineries[1];
 
-//             ordersOutput.innerHTML += `
-//                 <h4>Options for ${gasStation.title}</h4>
-//                 <table>
-//                     <tr>
-//                         <th>Refinery</th>
-//                         <th>Distance</th>
-//                         <th>Duration</th>
-//                         <th>Total Cost</th>
-//                     </tr>
-//                     <tr data-refinery-index="${closest.refinery.title}" data-gas-station-index="${gasStation.title}" class="order-row">
-//                         <td>${closest.refinery.title}</td>
-//                         <td>${closest.distance} miles</td>
-//                         <td>${closest.duration}</td>
-//                         <td>$${closest.totalCost.toFixed(2)}</td>
-//                     </tr>
-//                     <tr data-refinery-index="${secondClosest.refinery.title}" data-gas-station-index="${gasStation.title}" class="order-row">
-//                         <td>${secondClosest.refinery.title}</td>
-//                         <td>${secondClosest.distance} miles</td>
-//                         <td>${secondClosest.duration}</td>
-//                         <td>$${secondClosest.totalCost.toFixed(2)}</td>
-//                     </tr>
-//                 </table>
-//                 <hr>
-//             `;
-//         }
-//     }
-// });
+function generateTableRows(eligibleRefineries, gasStationTitle) {
+    let tableRows = "";
+    for (const eligible of eligibleRefineries) {
+        tableRows += `
+                <tr data-refinery-index="${eligible.refinery.title}" data-gas-station-index="${gasStationTitle}" class="order-row">
+                <td>${eligible.refinery.title}</td>
+                <td>${eligible.distance} miles</td>
+                <td>${eligible.duration}</td>
+                <td>$${eligible.totalCost.toFixed(2)}</td>
+            </tr>
+        `;
+    }
+    return tableRows;
+}
 
+
+function generateOutputHtml(gasStationTitle, tableRows100, tableRows25) {
+    return `
+        <h4>Options for ${gasStationTitle}</h4>
+        <h5>100% Fill Options</h5>
+        <table>${tableRows100}</table>
+        <h5>25% Increase Options</h5>
+        <table>${tableRows25}</table>
+        <hr>
+    `;
+}
 
 // Clear any existing route on the map and then draw a new route based on the selected refinery and gas station.
 function updateMapWithRoute(selectedRefinery, selectedGasStation) {
+    if (!selectedGasStation || !selectedRefinery) {
+        console.error("Either refinery or gas station not found.");
+        return;
+    }
     // Create a Directions Request object
     const request = {
         origin: new google.maps.LatLng(selectedRefinery.lat, selectedRefinery.lng),
@@ -595,6 +584,10 @@ function updateMapWithRoute(selectedRefinery, selectedGasStation) {
 // Update Route: If the clicked row is a valid order, call updateMapWithRoute to show the route on the map.
 
 document.getElementById('potential-orders').addEventListener('click', function(event) {
+    if (!isMapInitialized) {
+        console.log("Map is not initialized yet.");
+        return;
+    }
     console.log("Clicked inside potential-orders div");  // Debugging line
     const target = event.target;
     const parentRow = target.closest('.order-row'); // Find the closest parent row of the clicked element
@@ -607,6 +600,9 @@ document.getElementById('potential-orders').addEventListener('click', function(e
         const selectedRefinery = refineries.find(r => r.title === refineryTitle);
         const selectedGasStation = gasStations.find(g => g.title === gasStationTitle);
         
+        console.log('Selected Refinery:', selectedRefinery);
+        console.log('Selected Gas Station:', selectedGasStation);
+
         // Update the map here using selectedRefinery and selectedGasStation
         updateMapWithRoute(selectedRefinery, selectedGasStation);
     }
@@ -614,13 +610,5 @@ document.getElementById('potential-orders').addEventListener('click', function(e
 
 
 </script>
-
-<!--<script src="config.js"></script>-->
-<!--<script src="https://maps.googleapis.com/maps/api/js?key={API_KEY}&callback=initMap&libraries=&v=weekly" async></script>
- -->
-<!-- Add Google Maps JavaScript API -->
-<!--<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAkS4zu5MoOmw20zz7V_NEu1k_ZPJ-gH_0&callback=initMap&libraries=&v=weekly" async></script> -->
-<!-- Add Directions API -->
-
 </body>
 </html>
