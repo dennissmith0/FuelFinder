@@ -60,6 +60,23 @@
         height: 250px; /* Adjust this value according to the size of 5 rows */
         overflow-y: auto; /* Make it scrollable vertically */
         }
+
+        /* Style the complete & defer order buttons */
+        #order-actions button {
+            font-size: 18px;  /* Increase font size */
+            padding: 10px;  /* Add padding */
+            margin-top: 80px;  /* Add top margin */
+            margin-right: 30px; 
+        }
+
+        /* Style the button container */
+        #order-actions {
+            display: none;  /* Initially hidden */
+            text-align: center;  /* Centers the content horizontally */
+            margin-top: 20px;  /* Adds space between this div and the previous one */
+            width: 40%;  /* Takes up 40% of the screen width */
+            margin: 0 auto;  /* Centers the div itself */
+        }
     </style>
 </head>
 <body>
@@ -84,6 +101,10 @@
             <option value="4">Maverik (South Jordan)</option>
         </select>
         <div id="output"></div>
+        <div id="order-actions">
+            <button id="complete-order">Complete Order</button>
+            <button id="defer-order">Defer Order</button>
+          </div>
     </div>
     <div style="width: 60%; margin-left: 20px;">
         <button id="get-fuel">Get Fuel Amounts</button>
@@ -441,15 +462,8 @@ document.getElementById("get-fuel").addEventListener("click", function() {
 
 // Generate potential orders based on fuel amounts.
 // This function will calculate the amount of each type of fuel needed to fill each gas station's tanks to their maximum capacities.
-// It will then identify the closest and second closest refineries that can fulfill these needs.
 // It will also calculate the total cost of the orders based on the prices at those refineries.
-document.getElementById("generate-orders").addEventListener("click", async function() {
-    // Ensure we have fuel amounts
-    if (!refineries || !gasStations) {
-        alert("Please click 'Get Fuel Amounts' first to generate fuel amounts.");
-        return;
-    }
-
+async function generatePotentialOrders() {
     const ordersOutput = document.getElementById("potential-orders");
     ordersOutput.innerHTML = "<h3>Potential Orders</h3>";
 
@@ -462,11 +476,22 @@ document.getElementById("generate-orders").addEventListener("click", async funct
             premium: maxGasStationCapacities.premium - gasStation.fuelAmounts.premium
         };
 
+        // We calculate what a 25% increase would be for each fuel type.
         const increase25 = {
             regular: gasStation.fuelAmounts.regular * 0.25,
             midgrade: gasStation.fuelAmounts.midgrade * 0.25,
             premium: gasStation.fuelAmounts.premium * 0.25
         };
+        
+        // We check if adding a 25% increase in fuel to the current levels would exceed the maximum allowable capacity for each type.
+        const canIncrease25 = {
+            regular: gasStation.fuelAmounts.regular + increase25.regular <= maxGasStationCapacities.regular,
+            midgrade: gasStation.fuelAmounts.midgrade + increase25.midgrade <= maxGasStationCapacities.midgrade,
+            premium: gasStation.fuelAmounts.premium + increase25.premium <= maxGasStationCapacities.premium
+        };
+
+        // Check if we can increase all fuel types by 25% without exceeding max capacity
+        const canIncreaseAllBy25 = canIncrease25.regular && canIncrease25.midgrade && canIncrease25.premium;
 
         let eligibleRefineries100 = [];  // To store the refineries that can meet 100% fill requirements
         let eligibleRefineries25 = [];  // To store the refineries that can meet 25% fill requirements
@@ -492,7 +517,10 @@ document.getElementById("generate-orders").addEventListener("click", async funct
             }
 
             // Check eligibility for 25% fill
-            if (refinery.fuelAmounts.regular >= increase25.regular &&
+            if (gasStation.fuelAmounts.regular + increase25.regular <= maxGasStationCapacities.regular &&
+                gasStation.fuelAmounts.midgrade + increase25.midgrade <= maxGasStationCapacities.midgrade &&
+                gasStation.fuelAmounts.premium + increase25.premium <= maxGasStationCapacities.premium &&
+                refinery.fuelAmounts.regular >= increase25.regular &&
                 refinery.fuelAmounts.midgrade >= increase25.midgrade &&
                 refinery.fuelAmounts.premium >= increase25.premium) {
 
@@ -522,6 +550,15 @@ document.getElementById("generate-orders").addEventListener("click", async funct
         // Append to output
         ordersOutput.innerHTML += generateOutputHtml(gasStation.title, tableRows100, tableRows25);
     }
+}
+
+document.getElementById("generate-orders").addEventListener("click", async function() {
+    // Ensure we have fuel amounts
+    if (!refineries || !gasStations) {
+        alert("Please click 'Get Fuel Amounts' first to generate fuel amounts.");
+        return;
+    }
+    generatePotentialOrders();
 });
 
 
@@ -554,6 +591,9 @@ function generateOutputHtml(gasStationTitle, tableRows100, tableRows25) {
 
 // Clear any existing route on the map and then draw a new route based on the selected refinery and gas station.
 function updateMapWithRoute(selectedRefinery, selectedGasStation) {
+    // Debugging: Check if this function is entered
+    console.log("Entered updateMapWithRoute function");
+    
     if (!selectedGasStation || !selectedRefinery) {
         console.error("Either refinery or gas station not found.");
         return;
@@ -575,8 +615,39 @@ function updateMapWithRoute(selectedRefinery, selectedGasStation) {
             window.alert('Directions request failed due to ' + status);
         }
     });
-}
 
+    // Clear existing buttons from buttonContainer
+    const buttonContainer = document.getElementById("order-actions");
+    while (buttonContainer.firstChild) {
+        buttonContainer.removeChild(buttonContainer.firstChild);
+    }
+
+    // Create buttons and append them
+    const completeButton = document.createElement("button");
+    completeButton.innerHTML = "Complete Order";
+    completeButton.addEventListener("click", function() {
+        completeOrder(order);
+    });
+
+    const deferButton = document.createElement("button");
+    deferButton.innerHTML = "Defer Order";
+    deferButton.addEventListener("click", function() {
+        //deferOrder(order);
+        
+        // Hide the buttons after deferring the order
+        const buttonContainer = document.getElementById("order-actions");
+        if (buttonContainer) {
+            buttonContainer.style.display = "none";
+        }
+    });
+
+    // Append new buttons
+    buttonContainer.appendChild(completeButton);
+    buttonContainer.appendChild(deferButton);
+
+    // Make buttonContainer visible (if it was initially set to be hidden in your CSS)
+    buttonContainer.style.display = 'block';
+}
 
 // Listen for clicks on the potential-orders div
 // Event Delegation: Add a single click event listener to the parent div with the id potential-orders.
@@ -588,6 +659,7 @@ document.getElementById('potential-orders').addEventListener('click', function(e
         console.log("Map is not initialized yet.");
         return;
     }
+
     console.log("Clicked inside potential-orders div");  // Debugging line
     const target = event.target;
     const parentRow = target.closest('.order-row'); // Find the closest parent row of the clicked element
