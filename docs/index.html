@@ -109,9 +109,47 @@
     <div style="width: 60%; margin-left: 20px;">
         <button id="get-fuel">Get Fuel Amounts</button>
         <div id="fuel-output"></div>
-        <div id="refineries-list"></div>
+        <div id="refineries-list">
+            <h3>Refineries</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Refinery</th>
+                        <th>Total Fuel Capacity</th>
+                        <th>Regular</th>
+                        <th>Regular Price</th>
+                        <th>Midgrade</th>
+                        <th>Midgrade Price</th>
+                        <th>Premium</th>
+                        <th>Premium Price</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Data rows will go here -->
+                </tbody>
+            </table>
+        </div>
         <div class="scrollable-table">
-            <div id="gas-stations-list"></div>
+        <div id="gas-stations-list">
+            <h3>Gas Stations</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Site</th>
+                        <th>Total Fuel Capacity</th>
+                        <th>Regular</th>
+                        <th>Regular Price</th>
+                        <th>Midgrade</th>
+                        <th>Midgrade Price</th>
+                        <th>Premium</th>
+                        <th>Premium Price</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Data rows will go here -->
+                </tbody>
+            </table>
+        </div>
         </div>
         <button id="generate-orders">Generate Orders</button>
         <div id="potential-orders"></div>
@@ -129,6 +167,9 @@ let directionsService, directionsRenderer;
 let placesService;
 
 let isMapInitialized = false;
+
+// Initialize map as a global variable
+let map;
 
 function initMap() {
   const map = new google.maps.Map(document.getElementById("gmp-map"), {
@@ -368,7 +409,7 @@ function getGasPricePosition(gasType, currentPrice) {
 }
 
 const maxFuelAmounts = {
-        "Holly Refining Co.": 850500 / 2, // 850500 / 8, change to 2 states rather than 8 for more order possibilities. same below
+        "Holly Refining Co.": 850500 / 4, // 850500 / 8, change to 2 states rather than 8 for more order possibilities. same below
         "Big West Oil LLC": 661500 / 1.5, //661500 / 3,
         "Chevron Refinery": 1067000 / 1.5 , //1067000 / 3,
         "Silver Eagle Refining": (1067000 / 3 + 661500 / 3 + 850500 / 3) / 1.5 // (1067000 / 3 + 661500 / 3 + 850500 / 3) / 3 // no info on barrels/day. Average the other 3
@@ -469,6 +510,12 @@ async function generatePotentialOrders() {
 
     
     for (const gasStation of gasStations) {
+
+        // Skip this gas station if it's full
+        if (gasStation.isFull) {
+            continue;
+        }
+
         // Calculate how much of each type is needed
         const needed = {
             regular: maxGasStationCapacities.regular - gasStation.fuelAmounts.regular,
@@ -590,14 +637,17 @@ function generateOutputHtml(gasStationTitle, tableRows100, tableRows25) {
 }
 
 // Clear any existing route on the map and then draw a new route based on the selected refinery and gas station.
-function updateMapWithRoute(selectedRefinery, selectedGasStation) {
+function updateMapWithRoute(selectedRefinery, selectedGasStation, order) {
+    console.log("Inside updateMapWithRoute:", selectedRefinery, selectedGasStation, order);
     // Debugging: Check if this function is entered
     console.log("Entered updateMapWithRoute function");
     
+
     if (!selectedGasStation || !selectedRefinery) {
         console.error("Either refinery or gas station not found.");
         return;
     }
+    
     // Create a Directions Request object
     const request = {
         origin: new google.maps.LatLng(selectedRefinery.lat, selectedRefinery.lng),
@@ -610,6 +660,7 @@ function updateMapWithRoute(selectedRefinery, selectedGasStation) {
         if (status === google.maps.DirectionsStatus.OK) {
             // If the route is successfully found, display it on the map
             directionsRenderer.setDirections(result);
+            //directionsRenderer.setMap(map);  // Use the map passed as an argument
         } else {
             // If something went wrong, you can display a message or take other actions
             window.alert('Directions request failed due to ' + status);
@@ -634,8 +685,8 @@ function updateMapWithRoute(selectedRefinery, selectedGasStation) {
     deferButton.addEventListener("click", function() {
         //deferOrder(order);
         
-        // Hide the buttons after deferring the order
-        const buttonContainer = document.getElementById("order-actions");
+    // Hide the buttons after deferring the order
+    const buttonContainer = document.getElementById("order-actions");
         if (buttonContainer) {
             buttonContainer.style.display = "none";
         }
@@ -649,11 +700,108 @@ function updateMapWithRoute(selectedRefinery, selectedGasStation) {
     buttonContainer.style.display = 'block';
 }
 
+// Create a separate function that only updates the table rows based on the current refineries and gasStations arrays.
+// You can call this function from completeOrder to refresh the tables without resetting the fuel amounts.
+function refreshTables() {
+    console.log("Inside refreshTables");  // Debugging line
+
+    // Create table headers for refineries
+    let refineriesOutput = "<h3>Refineries</h3><table><tr><th>Refinery</th><th>Total Fuel Capacity</th><th>Regular</th><th>Regular Price</th><th>Midgrade</th><th>Midgrade Price</th><th>Premium</th><th>Premium Price</th></tr>";
+
+    // Loop through each refinery to create the rows
+    refineries.forEach(refinery => {
+        refineriesOutput += `<tr>
+            <td>${refinery.title}</td>
+            <td>${refinery.totalFuelAmount} gallons</td>
+            <td>${refinery.fuelAmounts.regular} gallons</td>
+            <td>$${refinery.prices.regular}/gal</td>
+            <td>${refinery.fuelAmounts.midgrade} gallons</td>
+            <td>$${refinery.prices.midgrade}/gal</td>
+            <td>${refinery.fuelAmounts.premium} gallons</td>
+            <td>$${refinery.prices.premium}/gal</td>
+        </tr>`;
+    });
+    refineriesOutput += "</table>";
+
+    // Create table headers for gas stations
+    let gasStationsOutput = "<h3>Gas Stations</h3><table><tr><th>Site</th><th>Total Fuel Capacity</th><th>Regular</th><th>Regular Price</th><th>Midgrade</th><th>Midgrade Price</th><th>Premium</th><th>Premium Price</th></tr>";
+
+    // Loop through each gas station to create the rows
+    gasStations.forEach(gasStation => {
+        gasStationsOutput += `<tr>
+            <td>${gasStation.title}</td>
+            <td>${gasStation.totalFuelAmount} gallons</td>
+            <td>${gasStation.fuelAmounts.regular} gallons</td>
+            <td>$${gasStation.prices.regular}/gal</td>
+            <td>${gasStation.fuelAmounts.midgrade} gallons</td>
+            <td>$${gasStation.prices.midgrade}/gal</td>
+            <td>${gasStation.fuelAmounts.premium} gallons</td>
+            <td>$${gasStation.prices.premium}/gal</td>
+        </tr>`;
+    });
+    gasStationsOutput += "</table>";
+
+    // Update the inner HTML
+    document.getElementById("refineries-list").innerHTML = refineriesOutput;
+    document.getElementById("gas-stations-list").innerHTML = gasStationsOutput;
+}
+
+
+// Complete Order
+function completeOrder(order) {
+    console.log("Order object:", JSON.stringify(order));
+    console.log("Refinery object:", JSON.stringify(order.refinery));
+    console.log("GasStation object:", JSON.stringify(order.gasStation));
+
+    console.log("Inside completeOrder, received order:", order);
+
+    // Reduce fuel amounts from the selected refinery
+    const refinery = order.refinery;
+    refinery.fuelAmounts.regular -= order.needed.regular;
+    refinery.fuelAmounts.midgrade -= order.needed.midgrade;
+    refinery.fuelAmounts.premium -= order.needed.premium;
+    refinery.totalFuelAmount -= order.needed.regular + order.needed.midgrade + order.needed.premium;
+
+    // Increase fuel amounts to the selected gas station
+    const gasStation = order.gasStation;
+    gasStation.fuelAmounts.regular += order.needed.regular;
+    gasStation.fuelAmounts.midgrade += order.needed.midgrade;
+    gasStation.fuelAmounts.premium += order.needed.premium;
+    gasStation.totalFuelAmount += order.needed.regular + order.needed.midgrade + order.needed.premium;
+
+
+    // Check if the gas station is full
+    gasStation.isFull = gasStation.fuelAmounts.regular >= maxGasStationCapacities.regular &&
+                        gasStation.fuelAmounts.midgrade >= maxGasStationCapacities.midgrade &&
+                        gasStation.fuelAmounts.premium >= maxGasStationCapacities.premium;
+
+     // Clear "Complete Order" and "Defer Order" buttons
+    const buttonContainer = document.getElementById("order-actions"); // Replace with your actual container ID
+    buttonContainer.innerHTML = "";
+
+    // Clear the map route
+    if (directionsRenderer) {  
+        directionsRenderer.setDirections({routes: []});
+    }
+
+    // Clear existing orders and regenerate the list
+    const ordersOutput = document.getElementById("potential-orders");
+    ordersOutput.innerHTML = "<h3>Potential Orders</h3>";  // Clear the existing list
+    generatePotentialOrders();  // Regenerate the list
+    
+    console.log("After completing order", JSON.stringify(refineries), JSON.stringify(gasStations));  // Debugging line
+
+    // Refresh the tables to show updated fuel amounts
+    refreshTables();
+}
+
+
 // Listen for clicks on the potential-orders div
 // Event Delegation: Add a single click event listener to the parent div with the id potential-orders.
 //      When a click event occurs, check if it is one of the rows (tr elements) that should be clickable.
 // Update Route: If the clicked row is a valid order, call updateMapWithRoute to show the route on the map.
 
+// This part listens to clicks on the potential orders and calls the appropriate function
 document.getElementById('potential-orders').addEventListener('click', function(event) {
     if (!isMapInitialized) {
         console.log("Map is not initialized yet.");
@@ -676,10 +824,34 @@ document.getElementById('potential-orders').addEventListener('click', function(e
         console.log('Selected Gas Station:', selectedGasStation);
 
         // Update the map here using selectedRefinery and selectedGasStation
-        updateMapWithRoute(selectedRefinery, selectedGasStation);
+        //updateMapWithRoute(selectedRefinery, selectedGasStation);
+
+        // Debugging: Print out the full object to check if it's in the expected state
+        console.log("Full selectedGasStation Object: ", selectedGasStation);
+
+        // Debugging: Print out just the fuelAmounts to see if they exist
+        console.log("Fuel Amounts: ", selectedGasStation.fuelAmounts);
+
+        // Create an order object for the completeOrder function
+        const order = {
+            refinery: selectedRefinery,
+            gasStation: selectedGasStation,
+            needed: {
+                regular: maxGasStationCapacities.regular - selectedGasStation.fuelAmounts.regular,
+                midgrade: maxGasStationCapacities.midgrade - selectedGasStation.fuelAmounts.midgrade,
+                premium: maxGasStationCapacities.premium - selectedGasStation.fuelAmounts.premium
+            }
+        };
+        console.log("Arguments being passed to updateMapWithRoute:", order);
+
+        // In your event listener where updateMapWithRoute is called
+        console.log("About to call updateMapWithRoute with order:", order);
+        updateMapWithRoute(order.refinery, order.gasStation, order);
+
+        // Update the map here using selectedRefinery and selectedGasStation
+        //updateMapWithRoute(order);  // Pass the order object instead of individual arguments
     }
 });
-
 
 </script>
 </body>
