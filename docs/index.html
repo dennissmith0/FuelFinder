@@ -357,9 +357,9 @@ function getRandomPrice(min, max) {
 // Assign random prices to refineries and gas stations (based on averages from 2019-2022)
 // https://www.eia.gov/dnav/pet/pet_pri_refmg_dcu_nus_m.htm
 function assignRandomPrices() {
-    const regularMin = 1.380, regularMax = 3.854;
-    const midgradeMin = 1.829, midgradeMax = 4.304;
-    const premiumMin = 2.089, premiumMax = 4.565;
+    const regularMin = 2.380, regularMax = 3.854;
+    const midgradeMin = 2.829, midgradeMax = 4.304;
+    const premiumMin = 3.089, premiumMax = 4.565;
 
     refineries.forEach(refinery => {
         refinery.prices = {
@@ -384,16 +384,16 @@ function getGasPricePosition(gasType, currentPrice) {
   
   switch (gasType) {
     case 'Premium':
-      minPrice = 2.795;
-      maxPrice = 4.270;
+      minPrice = 4.266;
+      maxPrice = 4.654;
       break;
     case 'Midgrade':
-      minPrice = 2.553;
-      maxPrice = 3.954;
+      minPrice = 3.980;
+      maxPrice = 4.376;
       break;
     case 'Regular':
-      minPrice = 2.237;
-      maxPrice = 3.489;
+      minPrice = 3.691;
+      maxPrice = 4.071;
       break;
     default:
       return 'Invalid gas type';
